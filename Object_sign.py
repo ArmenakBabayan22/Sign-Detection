@@ -5,9 +5,7 @@ import pyttsx3
 import threading
 import queue
 
-# ======================
-# Инициализация TTS
-# ======================
+
 engine = pyttsx3.init()
 engine.setProperty('rate', 120)
 engine.setProperty('volume', 1.0)
@@ -25,16 +23,12 @@ def speech_worker():
 
 threading.Thread(target=speech_worker, daemon=True).start()
 
-# ======================
-# Загрузка модели жестов руки (pickle)
-# ======================
+
 labels = {0: "A", 1: "B", 2: "C", 3: "Nothing"}
 with open('model.sign.pkl', 'rb') as f:
     gesture_model = pickle.load(f)
 
-# ======================
-# Камера
-# ======================
+
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("❌ Камера не открылась")
@@ -47,30 +41,28 @@ while True:
     if not ret:
         break
 
-    # ----------------------
-    # 1) Выделяем руку через цветовую маску (HSV)
-    # ----------------------
+   
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # Подбираем диапазон кожи (можно корректировать под свет)
+  
     lower_skin = np.array([0, 20, 70], dtype=np.uint8)
     upper_skin = np.array([20, 255, 255], dtype=np.uint8)
     
     mask = cv2.inRange(hsv, lower_skin, upper_skin)
     mask = cv2.GaussianBlur(mask, (5, 5), 0)
 
-    # Находим контуры руки
+
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     if contours:
-        # Берем самый большой контур (рука)
+      
         max_contour = max(contours, key=cv2.contourArea)
-        if cv2.contourArea(max_contour) > 1000:  # фильтр по размеру
+        if cv2.contourArea(max_contour) > 1000: 
             x, y, w, h = cv2.boundingRect(max_contour)
             hand_crop = frame[y:y+h, x:x+w]
 
             # ----------------------
-            # 2) Предсказание жеста
+          
             # ----------------------
             img = cv2.cvtColor(hand_crop, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, (200, 200))
@@ -85,7 +77,7 @@ while True:
                 speech_queue.put(predicted_label)
                 last_letter = predicted_label
 
-            # Отображаем рамку и букву
+         
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
             cv2.putText(frame, f"{predicted_label}", (x, y-10),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
@@ -95,9 +87,7 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# ======================
-# Остановка потока и освобождение камеры
-# ======================
+
 speech_queue.put(None)
 speech_queue.join()
 cap.release()
